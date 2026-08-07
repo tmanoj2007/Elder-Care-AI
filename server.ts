@@ -489,28 +489,142 @@ function cleanSpeechTranscript(rawText: string): string {
     .trim();
 }
 
-// Helper function for rule-based symptom extraction fallback with Telugu & Multilingual code-switching support
-function analyzeSymptomFallback(prompt: string, seniorName: string) {
+// Helper function for rule-based symptom extraction fallback with Telugu & Multilingual support
+function analyzeSymptomFallback(prompt: string, seniorName: string, selectedLanguage: string = 'English') {
   const cleanedPrompt = cleanSpeechTranscript(prompt);
   const text = cleanedPrompt.toLowerCase();
-  const isTeluguScript = /[\u0C00-\u0C7F]/.test(cleanedPrompt);
+  const langLower = (selectedLanguage || 'English').toLowerCase();
   
-  // 1. Urgent / High Risk / Emergency (Fall, Chest Pain, Stroke, Breathing, Severe Bleeding)
+  const isTelugu = /[\u0C00-\u0C7F]/.test(cleanedPrompt) || langLower.includes('telugu') || langLower.startsWith('te');
+  const isHindi = /[\u0900-\u097F]/.test(cleanedPrompt) || langLower.includes('hindi') || langLower.startsWith('hi');
+  const isKannada = /[\u0C80-\u0CFF]/.test(cleanedPrompt) || langLower.includes('kannada') || langLower.startsWith('kn');
+  const isTamil = /[\u0B80-\u0BFF]/.test(cleanedPrompt) || langLower.includes('tamil') || langLower.startsWith('ta');
+  const isMalayalam = /[\u0D00-\u0D7F]/.test(cleanedPrompt) || langLower.includes('malayalam') || langLower.startsWith('ml');
+  const isMarathi = langLower.includes('marathi') || langLower.startsWith('mr');
+  const isBengali = /[\u0980-\u09FF]/.test(cleanedPrompt) || langLower.includes('bengali') || langLower.startsWith('bn');
+  const isGujarati = /[\u0A80-\u0AFF]/.test(cleanedPrompt) || langLower.includes('gujarati') || langLower.startsWith('gu');
+  const isPunjabi = /[\u0A00-\u0A7F]/.test(cleanedPrompt) || langLower.includes('punjabi') || langLower.startsWith('pa');
+  const isOdia = /[\u0B00-\u0B7F]/.test(cleanedPrompt) || langLower.includes('odia') || langLower.startsWith('or');
+  const isUrdu = /[\u0600-\u06FF]/.test(cleanedPrompt) || langLower.includes('urdu') || langLower.startsWith('ur');
+
+  // Helper generator for fallback messages in specific script
+  const getLocalizedFallbackReply = (type: 'emergency' | 'cold' | 'throat' | 'headache' | 'dizziness' | 'joint' | 'meds' | 'general') => {
+    if (isTelugu) {
+      if (type === 'emergency') return `${seniorName} గారూ, దయచేసి ప్రశాంతంగా ఒక్కచోట కూర్చోండి! నేను వెంటనే మీ కేర్‌గైవర్‌కు అత్యవసర అలర్ట్ పంపుతున్నాను.`;
+      if (type === 'cold') return `${seniorName} గారూ, మీకు చలిగా అనిపిస్తోందా! దయచేసి వెచ్చని దుప్పటి కప్పుకొని, వేడి నీరు లేదా టీ తాగండి.`;
+      if (type === 'throat') return `${seniorName} గారూ, మీ గొంతు నొప్పిగా ఉంటే, కొద్దిగా తేనె కలిపిన గోరువెచ్చని నీరు తాగండి.`;
+      if (type === 'headache') return `${seniorName} గారూ, మీ తలనొప్పి తగ్గడానికి ప్రశాంతంగా కళ్ళు మూసుకొని విశ్రాంతి తీసుకోండి.`;
+      if (type === 'dizziness') return `${seniorName} గారూ, దయచేసి వెంటనే కూర్చోండి! కొద్దిగా నీరు తాగండి. కేర్‌గైవర్‌కు సమాచారం అందించాను.`;
+      if (type === 'joint') return `${seniorName} గారూ, నొప్పి ఉన్న చోట వెచ్చని కాపడం పెట్టుకొని హాయిగా విశ్రాంతి తీసుకోండి.`;
+      if (type === 'meds') return `చాలా మంచిది ${seniorName} గారూ! మీ మందులు వేసుకున్నందుకు సంతోషం. తగినంత మంచినీళ్లు తాగండి!`;
+      return `నమస్కారం ${seniorName} గారూ! ఈ రోజు మీరు ఎలా ఉన్నారు? మీ మందులు వేసుకోవడం మరచిపోకండి!`;
+    }
+    if (isHindi || isMarathi) {
+      if (type === 'emergency') return `${seniorName} जी, कृपया शांत रहें और बैठ जाएँ! मैं तुरंत आपके केयरगिवर को इमरजेंसी अलर्ट भेज रहा हूँ।`;
+      if (type === 'cold') return `${seniorName} जी, क्या आपको ठंड लग रही है? कृपया गर्म कंबल ओढ़ें और गर्म पानी या चाय पिएं।`;
+      if (type === 'throat') return `${seniorName} जी, अगर आपके गले में दर्द है, तो शहद के साथ गुनगुना पानी पिएं और आराम करें।`;
+      if (type === 'headache') return `${seniorName} जी, सिरदर्द के लिए थोड़ी देर आँखें बंद करके शांत कमरे में आराम करें।`;
+      if (type === 'dizziness') return `${seniorName} जी, कृपया तुरंत बैठ जाएँ! थोड़ा पानी पिएं। मैंने आपके केयरगिवर को सूचित कर दिया है।`;
+      if (type === 'joint') return `${seniorName} जी, दर्द वाली जगह पर हल्की सिकाई करें और आराम से बैठें।`;
+      if (type === 'meds') return `बहुत बढ़िया ${seniorName} जी! दवा लेने के लिए धन्यवाद। पर्याप्त पानी पिएं!`;
+      return `नमस्ते ${seniorName} जी! आज आप कैसा महसूस कर रहे हैं? अपनी दवाएं और पानी समय पर लें!`;
+    }
+    if (isKannada) {
+      if (type === 'emergency') return `${seniorName} ಅವರೇ, ದಯವಿಟ್ಟು ಶಾಂತವಾಗಿ ಕುಳಿತುಕೊಳ್ಳಿ! ನಾನು ತಕ್ಷಣವೇ ನಿಮ್ಮ ಗಾರ್ಡಿಯನ್‌ಗೆ ತುರ್ತು ಸಂದೇಶ ಕಳುಹಿಸುತ್ತಿದ್ದೇನೆ.`;
+      if (type === 'cold') return `${seniorName} ಅವರೇ, ನಿಮಗೆ ಚಳಿ ಅನಿಸುತ್ತಿದೆಯೇ? ಬಿಸಿ ನೀರು ಕುಡಿದು ಬೆಚ್ಚನೆಯ ಹೊದಿಕೆ ಹೊದ್ದುಕೊಳ್ಳಿ.`;
+      if (type === 'throat') return `${seniorName} ಅವರೇ, ಗಂಟಲು ನೋವಿದ್ದರೆ ಜೇನುತುಪ್ಪದೊಂದಿಗೆ ಉಗುರುಬೆಚ್ಚಗಿನ ನೀರು ಕುಡಿಯಿರಿ.`;
+      if (type === 'headache') return `${seniorName} ಅವರೇ, ತಲೆನೋವಿಗೆ ಸ್ವಲ್ಪ ಸಮಯ ಕಣ್ಣು ಮುಚ್ಚಿ ವಿಶ್ರಾಂತಿ ಪಡೆಯಿರಿ.`;
+      if (type === 'dizziness') return `${seniorName} ಅವರೇ, ತಕ್ಷಣ ಕುಳಿತುಕೊಳ್ಳಿ ಮತ್ತು ಸ್ವಲ್ಪ ನೀರು ಕುಡಿಯಿರಿ.`;
+      if (type === 'joint') return `${seniorName} ಅವರೇ, ನೋವಿರುವ ಜಾಗಕ್ಕೆ ಬಿಸಿ ಶಾಖ ಕೊಟ್ಟು ವಿಶ್ರಾಂತಿ ಪಡೆಯಿರಿ.`;
+      if (type === 'meds') return `ತುಂಬಾ ಒಳ್ಳೆಯದು ${seniorName} ಅವರೇ! ನಿಮ್ಮ ಔಷಧಿಯನ್ನು ತೆಗೆದುಕೊಂಡಿದ್ದಕ್ಕೆ ಧನ್ಯವಾದಗಳು.`;
+      return `ನಮಸ್ಕಾರ ${seniorName} ಅವರೇ! ಇಂದು ನಿಮ್ಮ ಆರೋಗ್ಯ ಹೇಗಿದೆ?`;
+    }
+    if (isTamil) {
+      if (type === 'emergency') return `${seniorName}, தயவுசெய்து அமைதியாக உட்காருங்கள்! நான் உடனே உங்கள் பராமரிப்பாளருக்கு அவசர எச்சரிக்கை அனுப்புகிறேன்.`;
+      if (type === 'cold') return `${seniorName}, உங்களுக்கு குளிராக இருக்கிறதா? இதமான போர்வை போர்த்தி வெதுவெதுப்பான நீர் அருந்துங்கள்.`;
+      if (type === 'throat') return `${seniorName}, தொண்டை வலிக்கு தேன் கலந்த வெதுவெதுப்பான நீர் அருந்தி ஓய்வெடுங்கள்.`;
+      if (type === 'headache') return `${seniorName}, தலைவலி குறைய சிறிது நேரம் அமைதியாக ஓய்வெடுங்கள்.`;
+      if (type === 'dizziness') return `${seniorName}, உடனே அமருங்கள்! சிறிது தண்ணீர் அருந்துங்கள்.`;
+      if (type === 'joint') return `${seniorName}, வலி உள்ள இடத்தில் மிதமான ஒத்தடம் கொடுத்து ஓய்வெடுங்கள்.`;
+      if (type === 'meds') return `மிக நன்று ${seniorName}! உங்கள் மருந்துகளை எடுத்துக் கொண்டதற்கு நன்றி.`;
+      return `வணக்கம் ${seniorName}! இன்று உங்கள் உடல்நலம் எப்படி இருக்கிறது?`;
+    }
+    if (isMalayalam) {
+      if (type === 'emergency') return `${seniorName}, ദയവായി ശാന്തമായി ഇരിക്കൂ! ഞാൻ ഉടൻ തന്നെ അടിയന്തര സന്ദേശം അയക്കുന്നു.`;
+      if (type === 'cold') return `${seniorName}, തണുപ്പ് അനുഭവപ്പെടുന്നുണ്ടെങ്കിൽ ചൂടുവെള്ളം കുടിക്കൂ, വിശ്രമിക്കൂ.`;
+      if (type === 'throat') return `${seniorName}, തൊണ്ടവേദനയ്ക്ക് തേൻ ചേർത്ത ചെറുചൂടുവെള്ളം കുടിക്കൂ.`;
+      if (type === 'headache') return `${seniorName}, തലവേദന മാറ്റാൻ കുറച്ചു സമയം കണ്ണടച്ച് വിശ്രമിക്കൂ.`;
+      if (type === 'dizziness') return `${seniorName}, ദയവായി ഉടൻ ഇരിക്കൂ! അല്പം വെള്ളം കുടിക്കൂ.`;
+      if (type === 'joint') return `${seniorName}, വേദനയുള്ള ഭാഗത്ത് ചൂടുപിടിക്കൂ, വിശ്രമിക്കൂ.`;
+      if (type === 'meds') return `വളരെ സന്തോഷം ${seniorName}! മരുന്ന് കഴിച്ചതിന് നന്ദി.`;
+      return `നമസ്കാരം ${seniorName}! ഇന്ന് നിങ്ങളുടെ ആരോഗ്യം എങ്ങനെയുണ്ട്?`;
+    }
+    if (isBengali) {
+      if (type === 'emergency') return `${seniorName}, দয়া করে শান্ত হয়ে বসুন! আমি অবিলম্বে জরুরি অ্যালার্ট পাঠাচ্ছি।`;
+      if (type === 'cold') return `${seniorName}, আপনার কি ঠান্ডা লাগছে? গরম জল বা চা পান করুন এবং বিশ্রাম নিন।`;
+      if (type === 'throat') return `${seniorName}, গলার ব্যথার জন্য হালকা গরম জলে মধু মিশিয়ে পান করুন।`;
+      if (type === 'headache') return `${seniorName}, মাথা ব্যথার জন্য একটু চোখ বন্ধ করে শান্ত ঘরে বিশ্রাম নিন।`;
+      if (type === 'dizziness') return `${seniorName}, দয়া করে এখনই বসে পড়ুন! অল্প জল পান করুন।`;
+      if (type === 'joint') return `${seniorName}, ব্যথার জায়গায় হালকা গরম সেক দিন এবং বিশ্রাম নিন।`;
+      if (type === 'meds') return `খুব ভালো ${seniorName}! ওষুধ খাওয়ার জন্য ধন্যবাদ।`;
+      return `নমস্কার ${seniorName}! আজ আপনার শরীর কেমন আছে?`;
+    }
+    if (isGujarati) {
+      if (type === 'emergency') return `${seniorName}, કૃપા કરીને શાંતિથી બેસી જાવ! હું તરત જ ઇમરજન્સી એલર્ટ મોકલી રહ્યો છું.`;
+      if (type === 'cold') return `${seniorName}, શું તમને ઠંડી લાગે છે? ગરમ ધાબળો ઓઢીને નવશેકું પાણી પીઓ.`;
+      if (type === 'throat') return `${seniorName}, ગળાના દુખાવા માટે મધવાળું નવશેકું પાણી પીઓ.`;
+      if (type === 'headache') return `${seniorName}, માથાના દુખાવા માટે થોડીવાર આંખો બંધ કરીને આરામ કરો.`;
+      if (type === 'dizziness') return `${seniorName}, કૃપા કરીને તરત જ બેસી જાવ! થોડું પાણી પીઓ.`;
+      if (type === 'joint') return `${seniorName}, દુખાવા વાળી જગ્યાએ શેક કરો અને આરામ કરો.`;
+      if (type === 'meds') return `ખૂબ સરસ ${seniorName}! દવા લેવા બદલ આભાર.`;
+      return `નમસ્તે ${seniorName}! આજે તમારી તબિયત કેવી છે?`;
+    }
+    if (isPunjabi) {
+      if (type === 'emergency') return `${seniorName}, ਕਿਰਪਾ ਕਰਕੇ ਸ਼ਾਂਤ ਹੋ ਕੇ ਬੈਠ ਜਾਓ! ਮੈਂ ਤੁਰੰਤ ਐਮਰਜੈਂਸੀ ਅਲਰਟ ਭੇਜ ਰਿਹਾ ਹਾਂ।`;
+      if (type === 'cold') return `${seniorName}, ਕੀ ਤੁਹਾਨੂੰ ਠੰਢ ਲੱਗ ਰਹੀ ਹੈ? ਗਰਮ ਪਾਣੀ ਜਾਂ ਚਾਹ ਪੀਓ ਅਤੇ ਆਰਾਮ ਕਰੋ।`;
+      if (type === 'throat') return `${seniorName}, ਗਲੇ ਦੇ ਦਰਦ ਲਈ ਸ਼ਹਿਦ ਵਾਲਾ ਗਰਮ ਪਾਣੀ ਪੀਓ।`;
+      if (type === 'headache') return `${seniorName}, ਸਿਰ ਦਰਦ ਲਈ ਥੋੜ੍ਹੀ ਦੇਰ ਅੱਖਾਂ ਬੰਦ ਕਰਕੇ ਆਰਾਮ ਕਰੋ।`;
+      if (type === 'dizziness') return `${seniorName}, ਕਿਰਪਾ ਕਰਕੇ ਤੁਰੰਤ ਬੈਠ ਜਾਓ! ਥੋੜ੍ਹਾ ਪਾਣੀ ਪੀਓ।`;
+      if (type === 'joint') return `${seniorName}, ਦਰਦ ਵਾਲੀ ਜਗ੍ਹਾ 'ਤੇ ਸੇਕ ਦਿਓ ਅਤੇ ਆਰਾਮ ਕਰੋ।`;
+      if (type === 'meds') return `ਬਹੁਤ ਵਧੀਆ ${seniorName}! ਦਵਾਈ ਲੈਣ ਲਈ ਧੰਨਵਾਦ।`;
+      return `ਸਤਿ ਸ਼੍ਰੀ ਅਕਾਲ ${seniorName}! ਅੱਜ ਤੁਹਾਡੀ ਸਿਹਤ ਕਿਵੇਂ ਹੈ?`;
+    }
+    if (isUrdu) {
+      if (type === 'emergency') return `${seniorName}، براہ کرم سکون سے بیٹھ جائیں! میں فوراً ایمرجنسی الرٹ بھیج رہا ہوں۔`;
+      if (type === 'cold') return `${seniorName}، کیا آپ کو سردی لگ رہی ہے؟ گرم پانی پیئیں اور آرام کریں۔`;
+      if (type === 'throat') return `${seniorName}، گلے کے درد کے لیے شہد کا گرم پانی پیئیں۔`;
+      if (type === 'headache') return `${seniorName}، سر درد کے لیے تھوڑی دیر آرام کریں۔`;
+      if (type === 'dizziness') return `${seniorName}، براہ کرم فوراً بیٹھ جائیں! کچھ پانی پیئیں۔`;
+      if (type === 'joint') return `${seniorName}، درد کی جگہ پر ہلکی سیک دیں اور آرام کریں۔`;
+      if (type === 'meds') return `بہت خوب ${seniorName}! دوا لینے کا شکریہ۔`;
+      return `السلام علیکم ${seniorName}! آج آپ کی طبیعت کیسی ہے؟`;
+    }
+
+    // Default English
+    if (type === 'emergency') return `Oh dear ${seniorName}, please sit still and stay calm! I am immediately triggering an automated high-priority guardian alert for your caregiver right now. Help is on the way!`;
+    if (type === 'cold') return `I hear you ${seniorName}! It sounds like you're feeling chilly. Wrap yourself in a warm blanket and sip a warm mug of tea or warm water.`;
+    if (type === 'throat') return `I'm sorry your throat is bothering you ${seniorName}. Try sipping warm water with honey and resting comfortably.`;
+    if (type === 'headache') return `I'm so sorry you have a headache ${seniorName}. Please drink a fresh glass of water and rest comfortably in a quiet room.`;
+    if (type === 'dizziness') return `${seniorName}, please sit down comfortably right now! Sip water slowly while I inform your caregiver.`;
+    if (type === 'joint') return `I'm sending warm comfort your way ${seniorName}. Apply a gentle warm compress to the sore area and rest comfortably.`;
+    if (type === 'meds') return `Wonderful job ${seniorName}! Thank you for keeping up with your scheduled medicine today. You are doing great!`;
+    return `It is lovely talking with you ${seniorName}! How are you feeling overall today? Remember to take your scheduled medications and drink fresh water!`;
+  };
+
+  // 1. Urgent / Emergency
   if (
     text.includes('fall') || text.includes('fell') || text.includes('chest pain') ||
     text.includes('cannot breathe') || text.includes("can't breathe") || text.includes('bleeding') ||
     text.includes('stroke') || text.includes('severe pain') || text.includes('emergency') ||
     text.includes('help me') || text.includes('sos') || text.includes('collapsed') ||
     text.includes('పడిపోయాను') || text.includes('ఛాతీ నొప్పి') || text.includes('సహాయం') ||
-    text.includes('padi poyanu') || text.includes('padipoyanu') || text.includes('gir gaya') || text.includes('gira gaya')
+    text.includes('padi poyanu') || text.includes('gir gaya') || text.includes('chhati dard')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, దయచేసి ప్రశాంతంగా ఒక్కచోట కూర్చోండి! నేను వెంటనే మీ కేర్‌గైవర్‌కు అత్యవసర అలర్ట్ పంపుతున్నాను. సహాయం అందుతోంది!`
-        : `Oh dear ${seniorName}, please sit still and stay calm! I am immediately triggering an automated high-priority guardian alert for your caregiver right now. Help is on the way!`,
+      replyText: getLocalizedFallbackReply('emergency'),
       detectedMood: 'anxious',
-      symptomDetected: isTeluguScript ? 'అత్యవసర పరిస్థితి / శారీరక ఇబ్బంది' : 'Urgent High-Risk Incident / Severe Distress',
-      suggestedSelfCare: isTeluguScript ? 'సురక్షితమైన స్థానంలో కదలకుండా కూర్చోండి.' : 'Stay completely still in a safe position. Do not attempt sudden movement.',
+      symptomDetected: 'Emergency Distress Incident',
+      suggestedSelfCare: 'Stay completely still in a safe position.',
       detectedTone: 'distressed',
       urgencyLevel: 'critical',
       flaggedConcern: `CRITICAL GUARDIAN ALERT: ${seniorName} reported "${cleanedPrompt}"`,
@@ -518,39 +632,33 @@ function analyzeSymptomFallback(prompt: string, seniorName: string) {
     };
   }
 
-  // 2. Cold / Chills / Shivering (e.g. "chali ga undi", "chaliga undi", "tengo frio", "thand lag rahi")
+  // 2. Cold / Chills
   if (
-    text.includes('cold') || text.includes('chilly') || text.includes('shivering') || text.includes('freezing') ||
-    text.includes('చలి') || text.includes('చలిగా') || text.includes('chali') || text.includes('chaliga') ||
-    text.includes('thand') || text.includes('thandh') || text.includes('frio')
+    text.includes('cold') || text.includes('chilly') || text.includes('shivering') ||
+    text.includes('చలి') || text.includes('thand') || text.includes('frio')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, మీకు చలిగా అనిపిస్తోందా! దయచేసి వెచ్చని దుప్పటి కప్పుకొని, కప్పు వెచ్చని మంచినీరు లేదా టీ తాగండి.`
-        : `I hear you ${seniorName}! It sounds like you're feeling chilly. I recommend wrapping yourself in a warm blanket, putting on cozy socks, and sipping a warm mug of herbal tea or warm water.`,
+      replyText: getLocalizedFallbackReply('cold'),
       detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'చలిగా ఉండటం' : 'Feeling Cold / Chills',
-      suggestedSelfCare: isTeluguScript ? 'వెచ్చని దుప్పటి కప్పుకోండి మరియు వేడి నీరు లేదా టీ తాగండి.' : 'Wrap in a cozy blanket, wear warm socks, and drink warm chamomile tea or warm lemon water.',
+      symptomDetected: 'Feeling Cold / Chills',
+      suggestedSelfCare: 'Wrap in a warm blanket and drink warm water or tea.',
       detectedTone: 'shivering',
       urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} reported feeling cold/chilly. Supportive self-care advice provided.`,
+      flaggedConcern: `${seniorName} reported feeling cold/chilly.`,
       isEmergency: false,
     };
   }
 
-  // 3. Sore Throat / Cough / Cold / Congestion (e.g. "gontu noppi", "gonthu", "daggu", "khansi")
+  // 3. Sore Throat / Cough
   if (
-    text.includes('throat') || text.includes('cough') || text.includes('flu') || text.includes('sneezing') ||
-    text.includes('runny nose') || text.includes('congested') || text.includes('గొంతు') || text.includes('దగ్గు') ||
-    text.includes('gontu') || text.includes('gonthu') || text.includes('daggu') || text.includes('khansi')
+    text.includes('throat') || text.includes('cough') || text.includes('flu') ||
+    text.includes('గొంతు') || text.includes('దగ్గు') || text.includes('khansi')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, మీ గొంతు నొప్పిగా ఉంటే, కొద్దిగా తేనె కలిపిన గోరువెచ్చని నీరు తాగండి. హాయిగా విశ్రాంతి తీసుకోండి.`
-        : `I'm sorry your throat or chest is bothering you ${seniorName}. Try sipping warm water with a spoonful of honey, and rest comfortably in a warm recliner. I will log this for your caregiver so they can check in.`,
+      replyText: getLocalizedFallbackReply('throat'),
       detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'గొంతు నొప్పి / దగ్గు' : 'Sore Throat / Cough Discomfort',
-      suggestedSelfCare: isTeluguScript ? 'గోరువెచ్చని నీటిలో తేనె కలుపుకొని తాగండి మరియు విశ్రాంతి తీసుకోండి.' : 'Sip warm water with honey, avoid cold air drafts, and rest comfortably.',
+      symptomDetected: 'Sore Throat / Cough Discomfort',
+      suggestedSelfCare: 'Sip warm water with honey and rest.',
       detectedTone: 'fatigued',
       urgencyLevel: 'low',
       flaggedConcern: `${seniorName} mentioned sore throat/cough symptoms.`,
@@ -558,79 +666,67 @@ function analyzeSymptomFallback(prompt: string, seniorName: string) {
     };
   }
 
-  // 4. Headache / Fever (e.g. "thala noppi", "thalanoppi", "sar dard", "sir dard", "fever", "jwaram")
+  // 4. Headache / Fever
   if (
-    text.includes('headache') || text.includes('head pain') || text.includes('fever') ||
-    text.includes('తలనొప్పి') || text.includes('జ్వరం') || text.includes('thala noppi') ||
-    text.includes('thalanoppi') || text.includes('sar dard') || text.includes('sir dard') || text.includes('jwaram')
+    text.includes('headache') || text.includes('fever') ||
+    text.includes('తలనొప్పి') || text.includes('జ్వరం') || text.includes('sar dard')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, మీ తలనొప్పి తగ్గడానికి కొద్దిసేపు కళ్ళు మూసుకొని ప్రశాంతంగా విశ్రాంతి తీసుకోండి, కొద్దిగా మంచి నీళ్ళు తాగండి.`
-        : `I'm so sorry you have a headache ${seniorName}. Please drink a cold glass of fresh water, dim the lights, and rest comfortably for 20 minutes.`,
+      replyText: getLocalizedFallbackReply('headache'),
       detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'తలనొప్పి / నీరసం' : 'Headache / Tension',
-      suggestedSelfCare: isTeluguScript ? 'వెలుతురు తక్కువగా ఉన్న ప్రశాంతమైన గదిలో విశ్రాంతి తీసుకోండి, నీరు తాగండి.' : 'Dim the room lights, drink fresh water, and rest comfortably.',
+      symptomDetected: 'Headache / Tension',
+      suggestedSelfCare: 'Dim room lights, drink fresh water, and rest.',
       detectedTone: 'fatigued',
       urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} reported a headache/fever discomfort.`,
+      flaggedConcern: `${seniorName} reported a headache.`,
       isEmergency: false,
     };
   }
 
-  // 5. Dizziness / Unsteady / Lightheaded (e.g. "kallu tiragadam", "chakkar", "dizzy ga undi")
+  // 5. Dizziness
   if (
     text.includes('dizzy') || text.includes('lightheaded') || text.includes('unsteady') ||
-    text.includes('spinning') || text.includes('balance') || text.includes('కళ్లు తిరగడం') ||
-    text.includes('చక్కర్లు') || text.includes('kallu tiragadam') || text.includes('chakkar')
+    text.includes('కళ్లు తిరగడం') || text.includes('chakkar')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, దయచేసి వెంటనే ప్రశాంతంగా కూర్చోండి! కొద్దిగా నీరు తాగండి. నేను మీ కేర్‌గైవర్‌కు సమాచారం అందిస్తాను.`
-        : `${seniorName}, please sit down comfortably right now and lean your head back. Sip a few small gulps of water slowly. I am alerting your caregiver so they can verify your blood pressure readings.`,
+      replyText: getLocalizedFallbackReply('dizziness'),
       detectedMood: 'anxious',
-      symptomDetected: isTeluguScript ? 'కళ్లు తిరగడం / నిలకడలేకపోవడం' : 'Dizziness / Unsteady Balance',
-      suggestedSelfCare: isTeluguScript ? 'వెంటనే కూర్చోండి, నెమ్మదిగా నీరు తాగండి.' : 'Sit down immediately, avoid sudden standing, drink water slowly.',
+      symptomDetected: 'Dizziness / Unsteady Balance',
+      suggestedSelfCare: 'Sit down immediately and drink water slowly.',
       detectedTone: 'unsteady',
       urgencyLevel: 'moderate',
-      flaggedConcern: `MODERATE ESCALATION: ${seniorName} reported feeling dizzy or unsteady.`,
+      flaggedConcern: `MODERATE ESCALATION: ${seniorName} reported feeling dizzy.`,
       isEmergency: false,
     };
   }
 
-  // 6. Joint Pain / Backache / Body Ache (e.g. "keella noppi", "knee pain", "pain ga undi")
+  // 6. Joint Pain
   if (
-    text.includes('pain') || text.includes('hurt') || text.includes('stiff') || text.includes('ache') ||
-    text.includes('knee') || text.includes('joint') || text.includes('నొప్పి') || text.includes('కీళ్ల నొప్పి') ||
-    text.includes('noppi') || text.includes('keella noppi') || text.includes('dard')
+    text.includes('pain') || text.includes('hurt') || text.includes('knee') ||
+    text.includes('నొప్పి') || text.includes('dard')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, నొప్పి ఉన్న చోట వెచ్చని కాపడం పెట్టుకొని హాయిగా విశ్రాంతి తీసుకోండి. నేను మీ ఆరోగ్యాన్ని పర్యవేక్షిస్తున్నాను.`
-        : `I'm sending warm comfort your way ${seniorName}. Try placing a soft warm cushion or gentle warm towel on the sore area and resting comfortably. Let me know if the discomfort continues.`,
+      replyText: getLocalizedFallbackReply('joint'),
       detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'కీళ్ల నొప్పి / నొప్పులు' : 'Joint Stiffness / Body Ache',
-      suggestedSelfCare: isTeluguScript ? 'వెచ్చని కాపడం పెట్టుకొని ప్రశాంతంగా విశ్రాంతి తీసుకోండి.' : 'Apply gentle warm compress, elevate stiff joints, and rest in a supported chair.',
+      symptomDetected: 'Joint Stiffness / Body Ache',
+      suggestedSelfCare: 'Apply gentle warm compress and rest.',
       detectedTone: 'pained',
       urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} noted joint/body ache or stiffness.`,
+      flaggedConcern: `${seniorName} noted joint/body ache.`,
       isEmergency: false,
     };
   }
 
-  // 7. Medication / Routine Update (e.g. "mandulu vesukunnanu", "took medicine", "tablets vesukunnanu")
+  // 7. Medication
   if (
-    text.includes('mandulu') || text.includes('medicine') || text.includes('meds') || text.includes('tablet') ||
-    text.includes('pill') || text.includes('మందులు') || text.includes('తాగేశాను') || text.includes('వేసుకున్నాను') ||
-    text.includes('dawai')
+    text.includes('mandulu') || text.includes('medicine') || text.includes('meds') ||
+    text.includes('tablet') || text.includes('మందులు') || text.includes('dawai')
   ) {
     return {
-      replyText: isTeluguScript
-        ? `చాలా మంచిది ${seniorName} గారూ! మీ మందులు వేసుకున్నందుకు సంతోషం. ఈ రోజు రోజంతా ప్రశాంతంగా గడపండి!`
-        : `Wonderful job ${seniorName}! Thank you for keeping up with your scheduled medicine today. You are doing great!`,
+      replyText: getLocalizedFallbackReply('meds'),
       detectedMood: 'happy',
       symptomDetected: null,
-      suggestedSelfCare: isTeluguScript ? 'తగినంత మంచినీళ్లు తాగండి.' : 'Keep hydrated and enjoy a relaxed day.',
+      suggestedSelfCare: 'Keep hydrated and enjoy a relaxed day.',
       detectedTone: 'cheerful',
       urgencyLevel: 'none',
       flaggedConcern: null,
@@ -640,12 +736,10 @@ function analyzeSymptomFallback(prompt: string, seniorName: string) {
 
   // Default General Friendly Chat
   return {
-    replyText: isTeluguScript
-      ? `నమస్కారం ${seniorName} గారూ! ఈ రోజు మీరు ఎలా ఉన్నారు? మీ మందులు వేసుకోవడం మరియు మంచినీళ్లు తాగడం మరచిపోకండి!`
-      : `It is lovely talking with you ${seniorName}! How are you feeling overall today? Remember to take your scheduled medications, drink fresh water, and enjoy the day!`,
+    replyText: getLocalizedFallbackReply('general'),
     detectedMood: 'calm',
     symptomDetected: null,
-    suggestedSelfCare: isTeluguScript ? 'మంచి మంచినీళ్లు తాగండి, ప్రశాంతంగా విశ్రాంతి తీసుకోండి.' : 'Stay hydrated with fresh water, enjoy gentle indoor walking, and stay relaxed.',
+    suggestedSelfCare: 'Stay hydrated with fresh water and stay relaxed.',
     detectedTone: 'cheerful',
     urgencyLevel: 'none',
     flaggedConcern: null,
@@ -659,30 +753,42 @@ app.post("/api/companion/chat", async (req, res) => {
     const { prompt, conversationHistory = [], seniorName = "Eleanor", selectedLanguage = "English", languageCode = "en-US" } = req.body;
 
     const cleanedPrompt = cleanSpeechTranscript(prompt || "");
-    const fallbackResult = analyzeSymptomFallback(cleanedPrompt, seniorName);
+    const fallbackResult = analyzeSymptomFallback(cleanedPrompt, seniorName, selectedLanguage);
 
     const ai = getGeminiClient();
     if (!ai) {
       return res.json(fallbackResult);
     }
 
-    const systemInstruction = `You are ElderCare AI Companion & Health Symptom Monitor, a compassionate, patient, warm, and highly observant AI companion for an elderly senior named ${seniorName}.
+    const systemInstruction = `You are ElderCare AI Companion & Health Symptom Monitor, a compassionate, patient, warm, polite, and highly observant AI companion for an elderly senior named ${seniorName}.
 
 EXPERT MULTILINGUAL & INTENT PARSING ENGINE INSTRUCTIONS:
-1) CODE-SWITCHING & MULTILINGUAL PARSING:
+1) AUTOMATIC LANGUAGE DETECTION & MANDATORY SAME-LANGUAGE RESPONSE:
    - Carefully analyze the senior's input: "${cleanedPrompt}".
-   - Recognize spoken languages, native scripts, AND transliterated code-switching (e.g. Telish - Telugu written in English script like "thala noppi ga undi", "chali ga undi", "mandulu vesukunnanu", "padi poyanu"; Hinglish like "sar dard ho raha hai", "thund lag rahi hai").
-   - IF the input is in TELUGU script OR transliterated Telugu (Telish), reply 100% in fluent, natural, grammatically correct TELUGU SCRIPT (తెలుగు)!
-   - IF the input is in HINDI or Hinglish, reply in HINDI script (हिन्दी)!
-   - IF the input is in ENGLISH, reply in natural, clear English!
-   - IF the input is in Spanish, French, German, Tagalog, etc., reply in that exact language!
+   - Detect the language spoken or typed automatically (including native scripts AND transliterated code-switching e.g. Telish, Hinglish, Tanglish, Kanglish).
+   - ALWAYS REPLY IN THE EXACT SAME LANGUAGE THAT THE USER SPEAKS:
+     * TELUGU (Telugu script / Telish) -> Reply COMPLETELY in fluent, natural, polite TELUGU SCRIPT (తెలుగు)! Add "గారూ" for respect.
+     * KANNADA (Kannada script / Kanglish) -> Reply COMPLETELY in fluent, natural, polite KANNADA SCRIPT (ಕನ್ನಡ)! Add "ಅವರೇ" for respect.
+     * HINDI (Hindi script / Hinglish) -> Reply COMPLETELY in fluent, natural, polite HINDI SCRIPT (हिन्दी)! Add "जी" for respect.
+     * TAMIL (Tamil script / Tanglish) -> Reply COMPLETELY in fluent, natural, polite TAMIL SCRIPT (தமிழ்)!
+     * MALAYALAM (Malayalam script) -> Reply COMPLETELY in fluent, natural MALAYALAM SCRIPT (മലയാളം)!
+     * MARATHI (Marathi script) -> Reply COMPLETELY in fluent, natural MARATHI SCRIPT (मराठी)!
+     * BENGALI (Bengali script) -> Reply COMPLETELY in fluent, natural BENGALI SCRIPT (বাংলা)!
+     * GUJARATI (Gujarati script) -> Reply COMPLETELY in fluent, natural GUJARATI SCRIPT (ગુજરાતી)!
+     * PUNJABI (Punjabi script) -> Reply COMPLETELY in fluent, natural PUNJABI SCRIPT (ਪੰਜਾਬੀ)!
+     * ODIA (Odia script) -> Reply COMPLETELY in fluent, natural ODIA SCRIPT (ଓଡ଼ିଆ)!
+     * URDU (Urdu script) -> Reply COMPLETELY in fluent, natural URDU SCRIPT (اردو)!
+     * ENGLISH -> Reply in natural, clear, warm English!
+     * SPANISH / FRENCH / GERMAN / CHINESE / JAPANESE / TAGALOG / ARABIC -> Reply in that exact language script!
+   - IF THE USER SWITCHES LANGUAGES mid-conversation, detect the new language automatically and immediately switch your reply to that new language.
+   - If the user input is ambiguous or extremely short (e.g. "hello", "hi"), use the configured preferred language: "${selectedLanguage}".
 
 2) HEALTH & SYMPTOM EXTRACTION:
    - Identify any health discomforts (e.g. cold/chills, fever, sore throat, cough, joint pain, dizziness, fatigue, anxiety, loneliness) OR acute emergency events (falls, chest pain, breathing difficulty, stroke, severe bleeding).
-   - Interpret colloquial and indirect phrases (e.g., "feeling under the weather", "chali ga undi", "body is hurting", "feet feel heavy", "forgot my pill").
+   - Interpret colloquial and indirect phrases (e.g., "feeling under the weather", "chali ga undi", "talenovu", "sar dard", "body is hurting", "forgot my pill").
 
 3) SUPPORTIVE SELF-CARE & REMINDER ADVICE:
-   - Whenever any symptom or discomfort is mentioned, immediately include warm, safe, non-medical self-care guidance directly inside your spoken reply in the target script (e.g., in Telugu script: "వెచ్చని దుప్పటి కప్పుకొని గోరువెచ్చని మంచినీరు తాగండి").
+   - Whenever any symptom or discomfort is mentioned, immediately include warm, safe, non-medical self-care guidance directly inside your spoken reply in the target script (e.g. in Telugu: "వెచ్చని దుప్పటి కప్పుకొని గోరువెచ్చని మంచినీరు తాగండి").
    - Acknowledge daily routine updates or medication confirmations warmly.
 
 4) GUARDIAN ESCALATION RULES:
@@ -691,10 +797,10 @@ EXPERT MULTILINGUAL & INTENT PARSING ENGINE INSTRUCTIONS:
    - Low/Routine: Set urgencyLevel="low" or "none".
 
 Output strict JSON with these exact keys:
-- replyText: string (Warm spoken reply in 2-3 simple sentences in native script e.g. Telugu script or English, containing gentle self-care advice)
+- replyText: string (Warm spoken reply in 2-3 simple sentences in the exact detected language script e.g. Telugu script or Kannada script, containing gentle self-care advice)
 - detectedMood: "happy" | "calm" | "lonely" | "anxious" | "tired" | "confused"
-- symptomDetected: string | null (Specific health issue in native script or English e.g. "చలిగా అనిపించడం", "Sore Throat", "తలనొప్పి")
-- suggestedSelfCare: string | null (Practical non-medical self-care tip in native script or English)
+- symptomDetected: string | null (Specific health issue in native script or English e.g. "చలిగా అనిపించడం", "തലവേദന", "Sore Throat")
+- suggestedSelfCare: string | null (Practical non-medical self-care tip in native script)
 - detectedTone: string (e.g. "shivering", "distressed", "fatigued", "calm", "cheerful")
 - urgencyLevel: "none" | "low" | "moderate" | "high" | "critical"
 - flaggedConcern: string | null (Brief clinical summary for caregiver dashboard)
