@@ -1,6 +1,6 @@
 {
   "name": "ElderCare AI",
-  "description": "Elderly-friendly, voice-first AI companion for aging in place, featuring high-contrast simple navigation, daily check-ins, caregiver insights, and privacy controls.",
+  "description": "Empowering elderly care with multi-agent AI: health monitoring, safety fall detection, smart medication reminders, companion chat, and caregiver insights.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
