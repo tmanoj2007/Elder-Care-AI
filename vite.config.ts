@@ -2,8 +2,16 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
-
-export default defineConfig(() => {
+  export default defineConfig(() => {
+  return {
+    base: '/Elder-Care-AI/',
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+      },
+    },
+    // ... rest of your code
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
