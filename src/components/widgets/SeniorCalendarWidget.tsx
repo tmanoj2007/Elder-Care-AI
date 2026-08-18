@@ -19,7 +19,7 @@ export const SeniorCalendarWidget: React.FC = () => {
 
   // Sample medical events
   const [events, setEvents] = useState<CalendarEvent[]>([
-    { id: 'ev-1', dateStr: '2026-08-07', title: 'Morning Lisinopril & BP Check', type: 'medication', time: '08:00 AM' },
+    { id: 'ev-1', dateStr: '2026-08-07', title: 'Morning Medication & Routine Check', type: 'medication', time: '08:00 AM' },
     { id: 'ev-2', dateStr: '2026-08-12', title: 'Dr. Evans Geriatric Follow-up', type: 'doctor', time: '10:30 AM' },
     { id: 'ev-3', dateStr: '2026-08-15', title: 'Blood Fasting Lab Test', type: 'lab_test', time: '09:00 AM' },
     { id: 'ev-4', dateStr: '2026-08-20', title: 'Pharmacy Prescription Refill Pickup', type: 'medication', time: '02:00 PM' },

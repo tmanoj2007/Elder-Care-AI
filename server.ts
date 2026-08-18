@@ -489,271 +489,349 @@ function cleanSpeechTranscript(rawText: string): string {
     .trim();
 }
 
-// Helper function for rule-based symptom extraction fallback with Telugu & Multilingual code-switching support
-function analyzeSymptomFallback(prompt: string, seniorName: string) {
-  const cleanedPrompt = cleanSpeechTranscript(prompt);
-  const text = cleanedPrompt.toLowerCase();
-  const isTeluguScript = /[\u0C00-\u0C7F]/.test(cleanedPrompt);
-  
-  // 1. Urgent / High Risk / Emergency (Fall, Chest Pain, Stroke, Breathing, Severe Bleeding)
-  if (
-    text.includes('fall') || text.includes('fell') || text.includes('chest pain') ||
-    text.includes('cannot breathe') || text.includes("can't breathe") || text.includes('bleeding') ||
-    text.includes('stroke') || text.includes('severe pain') || text.includes('emergency') ||
-    text.includes('help me') || text.includes('sos') || text.includes('collapsed') ||
-    text.includes('పడిపోయాను') || text.includes('ఛాతీ నొప్పి') || text.includes('సహాయం') ||
-    text.includes('padi poyanu') || text.includes('padipoyanu') || text.includes('gir gaya') || text.includes('gira gaya')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, దయచేసి ప్రశాంతంగా ఒక్కచోట కూర్చోండి! నేను వెంటనే మీ కేర్‌గైవర్‌కు అత్యవసర అలర్ట్ పంపుతున్నాను. సహాయం అందుతోంది!`
-        : `Oh dear ${seniorName}, please sit still and stay calm! I am immediately triggering an automated high-priority guardian alert for your caregiver right now. Help is on the way!`,
-      detectedMood: 'anxious',
-      symptomDetected: isTeluguScript ? 'అత్యవసర పరిస్థితి / శారీరక ఇబ్బంది' : 'Urgent High-Risk Incident / Severe Distress',
-      suggestedSelfCare: isTeluguScript ? 'సురక్షితమైన స్థానంలో కదలకుండా కూర్చోండి.' : 'Stay completely still in a safe position. Do not attempt sudden movement.',
-      detectedTone: 'distressed',
-      urgencyLevel: 'critical',
-      flaggedConcern: `CRITICAL GUARDIAN ALERT: ${seniorName} reported "${cleanedPrompt}"`,
-      isEmergency: true,
-    };
-  }
+// Build the shared system instruction for ElderCare AI Companion
+function buildCompanionSystemInstruction(seniorName: string, selectedLanguage: string = "English", languageCode: string = "en-US"): string {
+  return `You are ${seniorName}'s AI companion. Respond naturally, warmly, and directly to the user's actual message.
+Understand the user's intent and answer the question or request directly.
+Do not use a fixed response for different messages.
+Do not automatically turn normal conversation into health advice or medication reminders.
 
-  // 2. Cold / Chills / Shivering (e.g. "chali ga undi", "chaliga undi", "tengo frio", "thand lag rahi")
-  if (
-    text.includes('cold') || text.includes('chilly') || text.includes('shivering') || text.includes('freezing') ||
-    text.includes('చలి') || text.includes('చలిగా') || text.includes('chali') || text.includes('chaliga') ||
-    text.includes('thand') || text.includes('thandh') || text.includes('frio')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, మీకు చలిగా అనిపిస్తోందా! దయచేసి వెచ్చని దుప్పటి కప్పుకొని, కప్పు వెచ్చని మంచినీరు లేదా టీ తాగండి.`
-        : `I hear you ${seniorName}! It sounds like you're feeling chilly. I recommend wrapping yourself in a warm blanket, putting on cozy socks, and sipping a warm mug of herbal tea or warm water.`,
-      detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'చలిగా ఉండటం' : 'Feeling Cold / Chills',
-      suggestedSelfCare: isTeluguScript ? 'వెచ్చని దుప్పటి కప్పుకోండి మరియు వేడి నీరు లేదా టీ తాగండి.' : 'Wrap in a cozy blanket, wear warm socks, and drink warm chamomile tea or warm lemon water.',
-      detectedTone: 'shivering',
-      urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} reported feeling cold/chilly. Supportive self-care advice provided.`,
-      isEmergency: false,
-    };
-  }
+INTENT CLASSIFICATION & RESPONSE GUIDELINES:
+1. GREETING (e.g., "Hello", "Hi", "Good morning", "Good afternoon", "నమస్కారం", "नमस्ते"):
+   - Respond with a friendly, natural greeting that specifically acknowledges what the user said.
+2. QUESTION (e.g., "How are you?", "What is your name?", "What can you help me with?", "What time is it?"):
+   - Answer the question directly.
+   - If asked for your name/identity: state you are ElderCare AI companion.
+   - If asked how you are: answer naturally and politely.
+   - If asked what you can help with: explain you can converse, tell stories, share jokes, guide breathing exercises, track daily reminders, and assist with wellness.
+   - If asked for time: reference the current system time provided in the prompt context.
+3. JOKE REQUEST (e.g., "Tell me a joke"):
+   - Tell a cheerful, clean, amusing joke.
+4. STORY REQUEST (e.g., "Tell me a short story"):
+   - Share a short, uplifting, engaging story (2-4 sentences).
+5. BOREDOM & MOOD SUPPORT (e.g., "I am bored", "I am feeling lonely"):
+   - Respond with empathy. Suggest a fun topic, light trivia, a short riddle, or asking about a favorite hobby or memory.
+6. GENERAL CONVERSATION & CHIT-CHAT (e.g., "It is lovely talking with you Eleanor", talking about daily life, gardens, weather, cooking):
+   - Converse genuinely and contextually. Directly address what the user said without formulaic phrases.
+7. HEALTH & SYMPTOMS (e.g., "I have a headache", "I feel dizzy", "I am cold / shivering", "My knee hurts"):
+   - Acknowledge with compassionate care, offer simple non-medical soothing tips (e.g. resting in a quiet dim room, sipping warm water, a warm blanket), set symptomDetected, suggestedSelfCare, detectedTone, and appropriate urgencyLevel.
+8. EXPLICIT MEDICATION & REMINDER REQUESTS (e.g., "Remind me to take my medicine", "When is my pill?"):
+   - Recognize the reminder request and confirm clearly.
+9. EMERGENCY / URGENT (e.g., "I fell down", "Chest pain", "Cannot breathe", "Severe bleeding", "SOS"):
+   - Set isEmergency=true, urgencyLevel="critical". Instruct them calmly to remain safe and still, and reassure them that urgent guardian alerts are being dispatched.
+10. OTHER / GENERAL REQUESTS:
+   - Understand the user's exact words and respond contextually.
 
-  // 3. Sore Throat / Cough / Cold / Congestion (e.g. "gontu noppi", "gonthu", "daggu", "khansi")
-  if (
-    text.includes('throat') || text.includes('cough') || text.includes('flu') || text.includes('sneezing') ||
-    text.includes('runny nose') || text.includes('congested') || text.includes('గొంతు') || text.includes('దగ్గు') ||
-    text.includes('gontu') || text.includes('gonthu') || text.includes('daggu') || text.includes('khansi')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, మీ గొంతు నొప్పిగా ఉంటే, కొద్దిగా తేనె కలిపిన గోరువెచ్చని నీరు తాగండి. హాయిగా విశ్రాంతి తీసుకోండి.`
-        : `I'm sorry your throat or chest is bothering you ${seniorName}. Try sipping warm water with a spoonful of honey, and rest comfortably in a warm recliner. I will log this for your caregiver so they can check in.`,
-      detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'గొంతు నొప్పి / దగ్గు' : 'Sore Throat / Cough Discomfort',
-      suggestedSelfCare: isTeluguScript ? 'గోరువెచ్చని నీటిలో తేనె కలుపుకొని తాగండి మరియు విశ్రాంతి తీసుకోండి.' : 'Sip warm water with honey, avoid cold air drafts, and rest comfortably.',
-      detectedTone: 'fatigued',
-      urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} mentioned sore throat/cough symptoms.`,
-      isEmergency: false,
-    };
-  }
+ANTI-REPETITION & NATURAL DIALOGUE RULES:
+- DO NOT overuse "${seniorName}". Use the user's name naturally and only occasionally, not in every response.
+- DO NOT start every response with generic fillers like "Thank you! It is lovely talking with you...".
+- NEVER output the same fixed canned reply for different user inputs.
+- Every response must directly address the specific words and intent of the CURRENT user message.
 
-  // 4. Headache / Fever (e.g. "thala noppi", "thalanoppi", "sar dard", "sir dard", "fever", "jwaram")
-  if (
-    text.includes('headache') || text.includes('head pain') || text.includes('fever') ||
-    text.includes('తలనొప్పి') || text.includes('జ్వరం') || text.includes('thala noppi') ||
-    text.includes('thalanoppi') || text.includes('sar dard') || text.includes('sir dard') || text.includes('jwaram')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, మీ తలనొప్పి తగ్గడానికి కొద్దిసేపు కళ్ళు మూసుకొని ప్రశాంతంగా విశ్రాంతి తీసుకోండి, కొద్దిగా మంచి నీళ్ళు తాగండి.`
-        : `I'm so sorry you have a headache ${seniorName}. Please drink a cold glass of fresh water, dim the lights, and rest comfortably for 20 minutes.`,
-      detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'తలనొప్పి / నీరసం' : 'Headache / Tension',
-      suggestedSelfCare: isTeluguScript ? 'వెలుతురు తక్కువగా ఉన్న ప్రశాంతమైన గదిలో విశ్రాంతి తీసుకోండి, నీరు తాగండి.' : 'Dim the room lights, drink fresh water, and rest comfortably.',
-      detectedTone: 'fatigued',
-      urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} reported a headache/fever discomfort.`,
-      isEmergency: false,
-    };
-  }
+MULTILINGUAL SUPPORT:
+- If the user speaks or writes in Telugu (or Telugu transliteration / Telish, e.g. "ela unnaru", "chali ga undi", "thala noppi", "katha cheppu"), respond entirely in natural, fluent Telugu script (తెలుగు)!
+- If the user speaks or writes in Hindi (or Hinglish, e.g. "kaisa hai", "sar dard hai", "kahani sunao"), respond in natural Hindi script (हिन्दी)!
+- If in English, respond in natural, clear English.
+- If in another configured language (${selectedLanguage}), respond in that language.
 
-  // 5. Dizziness / Unsteady / Lightheaded (e.g. "kallu tiragadam", "chakkar", "dizzy ga undi")
-  if (
-    text.includes('dizzy') || text.includes('lightheaded') || text.includes('unsteady') ||
-    text.includes('spinning') || text.includes('balance') || text.includes('కళ్లు తిరగడం') ||
-    text.includes('చక్కర్లు') || text.includes('kallu tiragadam') || text.includes('chakkar')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, దయచేసి వెంటనే ప్రశాంతంగా కూర్చోండి! కొద్దిగా నీరు తాగండి. నేను మీ కేర్‌గైవర్‌కు సమాచారం అందిస్తాను.`
-        : `${seniorName}, please sit down comfortably right now and lean your head back. Sip a few small gulps of water slowly. I am alerting your caregiver so they can verify your blood pressure readings.`,
-      detectedMood: 'anxious',
-      symptomDetected: isTeluguScript ? 'కళ్లు తిరగడం / నిలకడలేకపోవడం' : 'Dizziness / Unsteady Balance',
-      suggestedSelfCare: isTeluguScript ? 'వెంటనే కూర్చోండి, నెమ్మదిగా నీరు తాగండి.' : 'Sit down immediately, avoid sudden standing, drink water slowly.',
-      detectedTone: 'unsteady',
-      urgencyLevel: 'moderate',
-      flaggedConcern: `MODERATE ESCALATION: ${seniorName} reported feeling dizzy or unsteady.`,
-      isEmergency: false,
-    };
-  }
-
-  // 6. Joint Pain / Backache / Body Ache (e.g. "keella noppi", "knee pain", "pain ga undi")
-  if (
-    text.includes('pain') || text.includes('hurt') || text.includes('stiff') || text.includes('ache') ||
-    text.includes('knee') || text.includes('joint') || text.includes('నొప్పి') || text.includes('కీళ్ల నొప్పి') ||
-    text.includes('noppi') || text.includes('keella noppi') || text.includes('dard')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `${seniorName} గారూ, నొప్పి ఉన్న చోట వెచ్చని కాపడం పెట్టుకొని హాయిగా విశ్రాంతి తీసుకోండి. నేను మీ ఆరోగ్యాన్ని పర్యవేక్షిస్తున్నాను.`
-        : `I'm sending warm comfort your way ${seniorName}. Try placing a soft warm cushion or gentle warm towel on the sore area and resting comfortably. Let me know if the discomfort continues.`,
-      detectedMood: 'tired',
-      symptomDetected: isTeluguScript ? 'కీళ్ల నొప్పి / నొప్పులు' : 'Joint Stiffness / Body Ache',
-      suggestedSelfCare: isTeluguScript ? 'వెచ్చని కాపడం పెట్టుకొని ప్రశాంతంగా విశ్రాంతి తీసుకోండి.' : 'Apply gentle warm compress, elevate stiff joints, and rest in a supported chair.',
-      detectedTone: 'pained',
-      urgencyLevel: 'low',
-      flaggedConcern: `${seniorName} noted joint/body ache or stiffness.`,
-      isEmergency: false,
-    };
-  }
-
-  // 7. Medication / Routine Update (e.g. "mandulu vesukunnanu", "took medicine", "tablets vesukunnanu")
-  if (
-    text.includes('mandulu') || text.includes('medicine') || text.includes('meds') || text.includes('tablet') ||
-    text.includes('pill') || text.includes('మందులు') || text.includes('తాగేశాను') || text.includes('వేసుకున్నాను') ||
-    text.includes('dawai')
-  ) {
-    return {
-      replyText: isTeluguScript
-        ? `చాలా మంచిది ${seniorName} గారూ! మీ మందులు వేసుకున్నందుకు సంతోషం. ఈ రోజు రోజంతా ప్రశాంతంగా గడపండి!`
-        : `Wonderful job ${seniorName}! Thank you for keeping up with your scheduled medicine today. You are doing great!`,
-      detectedMood: 'happy',
-      symptomDetected: null,
-      suggestedSelfCare: isTeluguScript ? 'తగినంత మంచినీళ్లు తాగండి.' : 'Keep hydrated and enjoy a relaxed day.',
-      detectedTone: 'cheerful',
-      urgencyLevel: 'none',
-      flaggedConcern: null,
-      isEmergency: false,
-    };
-  }
-
-  // Default General Friendly Chat
-  return {
-    replyText: isTeluguScript
-      ? `నమస్కారం ${seniorName} గారూ! ఈ రోజు మీరు ఎలా ఉన్నారు? మీ మందులు వేసుకోవడం మరియు మంచినీళ్లు తాగడం మరచిపోకండి!`
-      : `It is lovely talking with you ${seniorName}! How are you feeling overall today? Remember to take your scheduled medications, drink fresh water, and enjoy the day!`,
-    detectedMood: 'calm',
-    symptomDetected: null,
-    suggestedSelfCare: isTeluguScript ? 'మంచి మంచినీళ్లు తాగండి, ప్రశాంతంగా విశ్రాంతి తీసుకోండి.' : 'Stay hydrated with fresh water, enjoy gentle indoor walking, and stay relaxed.',
-    detectedTone: 'cheerful',
-    urgencyLevel: 'none',
-    flaggedConcern: null,
-    isEmergency: false,
-  };
+OUTPUT FORMAT:
+Return ONLY a valid JSON object matching this schema:
+{
+  "replyText": "The conversational reply addressing the user's specific message (1-3 natural sentences)",
+  "detectedMood": "happy" | "calm" | "lonely" | "anxious" | "tired" | "confused",
+  "symptomDetected": string | null,
+  "suggestedSelfCare": string | null,
+  "detectedTone": string,
+  "urgencyLevel": "none" | "low" | "moderate" | "high" | "critical",
+  "flaggedConcern": string | null,
+  "isEmergency": boolean
+}`;
 }
 
-// AI Companion Chat Endpoint
+// AI Companion Chat Endpoint (Supporting Google Gemini and Local Gemma 4 via Ollama)
 app.post("/api/companion/chat", async (req, res) => {
+  const {
+    prompt,
+    conversationHistory = [],
+    seniorName = "Eleanor",
+    selectedLanguage = "English",
+    languageCode = "en-US",
+    provider = "gemini",
+  } = req.body;
+
+  const cleanedPrompt = cleanSpeechTranscript(prompt || "");
+  console.log(`[AI Companion] Request received: provider=${provider}, senior=${seniorName}, language=${selectedLanguage} (${languageCode}), prompt="${cleanedPrompt}"`);
+
+  if (!cleanedPrompt) {
+    return res.json({
+      replyText: `Hello ${seniorName}! How can I help you today?`,
+      detectedMood: "calm",
+      symptomDetected: null,
+      suggestedSelfCare: null,
+      detectedTone: "friendly",
+      urgencyLevel: "none",
+      flaggedConcern: null,
+      isEmergency: false,
+      provider,
+    });
+  }
+
+  const systemInstruction = buildCompanionSystemInstruction(seniorName, selectedLanguage, languageCode);
+
+  // === 1. LOCAL GEMMA 4 VIA OLLAMA ===
+  if (provider === "ollama") {
+    try {
+      const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+
+      // Prepare conversation history window (last 6 messages)
+      const recentHistory = Array.isArray(conversationHistory) ? conversationHistory.slice(-6) : [];
+      const messages: Array<{ role: string; content: string }> = [
+        {
+          role: "system",
+          content: `${systemInstruction}\n\nIMPORTANT: Return ONLY a valid JSON object with the specified keys. Do not include markdown code block backticks or any conversational text before or after the JSON.`,
+        },
+      ];
+
+      for (const msg of recentHistory) {
+        if (msg.sender === "elder") {
+          messages.push({ role: "user", content: msg.text });
+        } else if (msg.sender === "companion") {
+          messages.push({ role: "assistant", content: msg.text });
+        }
+      }
+
+      const currentTimeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      messages.push({
+        role: "user",
+        content: `[Current Time: ${currentTimeString}, User: ${seniorName}, Preferred Language: ${selectedLanguage}, Language Code: ${languageCode}]\nUser message: "${cleanedPrompt}"`,
+      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 35000);
+
+      const ollamaRes = await fetch(`${ollamaUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gemma4:latest",
+          messages,
+          format: "json",
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!ollamaRes.ok) {
+        const errorText = await ollamaRes.text().catch(() => "");
+        console.error(`[AI Companion] Ollama returned status ${ollamaRes.status}:`, errorText);
+        return res.status(503).json({
+          replyText: "Local Gemma is not available. Please start Ollama on this computer and try again.",
+          detectedMood: "calm",
+          symptomDetected: null,
+          suggestedSelfCare: null,
+          detectedTone: "neutral",
+          urgencyLevel: "none",
+          flaggedConcern: null,
+          isEmergency: false,
+          error: "Local Gemma is not available. Please start Ollama on this computer and try again.",
+          provider: "ollama",
+        });
+      }
+
+      const ollamaData: any = await ollamaRes.json();
+      const content = ollamaData?.message?.content || "";
+      console.log(`[AI Companion] Ollama response content:`, content.slice(0, 80));
+
+      let jsonStr = content.trim();
+      if (jsonStr.startsWith("```")) {
+        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+      }
+
+      let parsedData: any = {};
+      try {
+        parsedData = JSON.parse(jsonStr);
+      } catch (parseErr) {
+        console.warn("[AI Companion] Failed to parse JSON directly from Gemma, attempting regex extraction:", parseErr);
+        const match = jsonStr.match(/\{[\s\S]*\}/);
+        if (match) {
+          try {
+            parsedData = JSON.parse(match[0]);
+          } catch {
+            parsedData = { replyText: content };
+          }
+        } else {
+          parsedData = { replyText: content };
+        }
+      }
+
+      const replyText = parsedData.replyText ? parsedData.replyText.trim() : (content.trim() || "I am right here with you!");
+
+      return res.json({
+        replyText,
+        detectedMood: parsedData.detectedMood || "calm",
+        symptomDetected: parsedData.symptomDetected || null,
+        suggestedSelfCare: parsedData.suggestedSelfCare || null,
+        detectedTone: parsedData.detectedTone || "conversational",
+        urgencyLevel: parsedData.urgencyLevel || "none",
+        flaggedConcern: parsedData.flaggedConcern || null,
+        isEmergency: typeof parsedData.isEmergency === "boolean" ? parsedData.isEmergency : false,
+        provider: "ollama",
+      });
+    } catch (ollamaErr: any) {
+      console.error("[AI Companion] Error communicating with Ollama Local Gemma 4:", ollamaErr.message || ollamaErr);
+      return res.status(503).json({
+        replyText: "Local Gemma is not available. Please start Ollama on this computer and try again.",
+        detectedMood: "calm",
+        symptomDetected: null,
+        suggestedSelfCare: null,
+        detectedTone: "neutral",
+        urgencyLevel: "none",
+        flaggedConcern: null,
+        isEmergency: false,
+        error: "Local Gemma is not available. Please start Ollama on this computer and try again.",
+        provider: "ollama",
+      });
+    }
+  }
+
+  // === 2. GOOGLE GEMINI (DEFAULT PROVIDER) ===
   try {
-    const { prompt, conversationHistory = [], seniorName = "Eleanor", selectedLanguage = "English", languageCode = "en-US" } = req.body;
-
-    const cleanedPrompt = cleanSpeechTranscript(prompt || "");
-    const fallbackResult = analyzeSymptomFallback(cleanedPrompt, seniorName);
-
     const ai = getGeminiClient();
     if (!ai) {
-      return res.json(fallbackResult);
+      console.error("[AI Companion] Gemini client initialization failed. Check GEMINI_API_KEY.");
+      return res.status(503).json({
+        replyText: "Sorry, I couldn't process that request right now. Please try again.",
+        detectedMood: "calm",
+        symptomDetected: null,
+        suggestedSelfCare: null,
+        detectedTone: "neutral",
+        urgencyLevel: "none",
+        flaggedConcern: null,
+        isEmergency: false,
+        error: "Gemini API key is not configured.",
+        provider: "gemini",
+      });
     }
 
-    const systemInstruction = `You are ElderCare AI Companion & Health Symptom Monitor, a compassionate, patient, warm, and highly observant AI companion for an elderly senior named ${seniorName}.
-
-EXPERT MULTILINGUAL & INTENT PARSING ENGINE INSTRUCTIONS:
-1) CODE-SWITCHING & MULTILINGUAL PARSING:
-   - Carefully analyze the senior's input: "${cleanedPrompt}".
-   - Recognize spoken languages, native scripts, AND transliterated code-switching (e.g. Telish - Telugu written in English script like "thala noppi ga undi", "chali ga undi", "mandulu vesukunnanu", "padi poyanu"; Hinglish like "sar dard ho raha hai", "thund lag rahi hai").
-   - IF the input is in TELUGU script OR transliterated Telugu (Telish), reply 100% in fluent, natural, grammatically correct TELUGU SCRIPT (తెలుగు)!
-   - IF the input is in HINDI or Hinglish, reply in HINDI script (हिन्दी)!
-   - IF the input is in ENGLISH, reply in natural, clear English!
-   - IF the input is in Spanish, French, German, Tagalog, etc., reply in that exact language!
-
-2) HEALTH & SYMPTOM EXTRACTION:
-   - Identify any health discomforts (e.g. cold/chills, fever, sore throat, cough, joint pain, dizziness, fatigue, anxiety, loneliness) OR acute emergency events (falls, chest pain, breathing difficulty, stroke, severe bleeding).
-   - Interpret colloquial and indirect phrases (e.g., "feeling under the weather", "chali ga undi", "body is hurting", "feet feel heavy", "forgot my pill").
-
-3) SUPPORTIVE SELF-CARE & REMINDER ADVICE:
-   - Whenever any symptom or discomfort is mentioned, immediately include warm, safe, non-medical self-care guidance directly inside your spoken reply in the target script (e.g., in Telugu script: "వెచ్చని దుప్పటి కప్పుకొని గోరువెచ్చని మంచినీరు తాగండి").
-   - Acknowledge daily routine updates or medication confirmations warmly.
-
-4) GUARDIAN ESCALATION RULES:
-   - Emergency/Critical (falls, chest pain, breathing distress, severe bleeding): Set isEmergency=true, urgencyLevel="critical" or "high", and write an urgent flaggedConcern for the caregiver.
-   - Moderate (dizziness, unsteady balance, high pain): Set urgencyLevel="moderate" and summarize the concern.
-   - Low/Routine: Set urgencyLevel="low" or "none".
-
-Output strict JSON with these exact keys:
-- replyText: string (Warm spoken reply in 2-3 simple sentences in native script e.g. Telugu script or English, containing gentle self-care advice)
-- detectedMood: "happy" | "calm" | "lonely" | "anxious" | "tired" | "confused"
-- symptomDetected: string | null (Specific health issue in native script or English e.g. "చలిగా అనిపించడం", "Sore Throat", "తలనొప్పి")
-- suggestedSelfCare: string | null (Practical non-medical self-care tip in native script or English)
-- detectedTone: string (e.g. "shivering", "distressed", "fatigued", "calm", "cheerful")
-- urgencyLevel: "none" | "low" | "moderate" | "high" | "critical"
-- flaggedConcern: string | null (Brief clinical summary for caregiver dashboard)
-- isEmergency: boolean (true if fall, chest pain, breathing difficulty, severe emergency)`;
-
-    // Construct conversation context
-    const formattedHistory = conversationHistory
-      .slice(-6)
+    // Construct conversation context from recent history
+    const recentHistory = Array.isArray(conversationHistory) ? conversationHistory.slice(-6) : [];
+    const formattedHistory = recentHistory
       .map((msg: any) => `${msg.sender === 'elder' ? seniorName : 'Companion'}: ${msg.text}`)
       .join('\n');
 
-    const fullUserPrompt = `${formattedHistory ? `Recent conversation context:\n${formattedHistory}\n\n` : ''}${seniorName} says (Configured Language: ${selectedLanguage}, Code: ${languageCode}): "${cleanedPrompt}"`;
+    const currentTimeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: fullUserPrompt,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            replyText: { type: Type.STRING },
-            detectedMood: {
-              type: Type.STRING,
-              enum: ["happy", "calm", "lonely", "anxious", "tired", "confused"]
-            },
-            symptomDetected: { type: Type.STRING, nullable: true },
-            suggestedSelfCare: { type: Type.STRING, nullable: true },
-            detectedTone: { type: Type.STRING },
-            urgencyLevel: {
-              type: Type.STRING,
-              enum: ["none", "low", "moderate", "high", "critical"]
-            },
-            flaggedConcern: { type: Type.STRING, nullable: true },
-            isEmergency: { type: Type.BOOLEAN }
-          },
-          required: ["replyText", "detectedMood", "isEmergency", "urgencyLevel", "detectedTone"]
+    const fullUserPrompt = `${formattedHistory ? `Recent conversation context:\n${formattedHistory}\n\n` : ''}[Current System Time: ${currentTimeString}, Configured Language: ${selectedLanguage} (Code: ${languageCode})]\n${seniorName} says: "${cleanedPrompt}"`;
+
+    const candidateModels = ["gemini-3.7-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    let response: any = null;
+    let lastError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        const fetchPromise = ai.models.generateContent({
+          model,
+          contents: fullUserPrompt,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                replyText: { type: Type.STRING },
+                detectedMood: {
+                  type: Type.STRING,
+                  enum: ["happy", "calm", "lonely", "anxious", "tired", "confused"]
+                },
+                symptomDetected: { type: Type.STRING, nullable: true },
+                suggestedSelfCare: { type: Type.STRING, nullable: true },
+                detectedTone: { type: Type.STRING },
+                urgencyLevel: {
+                  type: Type.STRING,
+                  enum: ["none", "low", "moderate", "high", "critical"]
+                },
+                flaggedConcern: { type: Type.STRING, nullable: true },
+                isEmergency: { type: Type.BOOLEAN }
+              },
+              required: ["replyText", "detectedMood", "isEmergency", "urgencyLevel", "detectedTone"]
+            }
+          }
+        });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout on model ${model}`)), 6500)
+        );
+
+        response = await Promise.race([fetchPromise, timeoutPromise]);
+        if (response && response.text) {
+          console.log(`[AI Companion] Gemini response succeeded using model: ${model}`);
+          break;
         }
+      } catch (err: any) {
+        console.warn(`[AI Companion] Model ${model} failed or timed out:`, err.message || err.status || err);
+        lastError = err;
       }
-    });
+    }
+
+    if (!response || !response.text) {
+      throw lastError || new Error("No response returned from Gemini models");
+    }
 
     const resultText = response.text || "{}";
-    const parsedData = JSON.parse(resultText);
+    let jsonStr = resultText.trim();
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    }
+
+    let parsedData: any = {};
+    try {
+      parsedData = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.warn("[AI Companion] Failed direct JSON parse, trying regex extract:", parseErr);
+      const match = jsonStr.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          parsedData = JSON.parse(match[0]);
+        } catch {
+          parsedData = { replyText: resultText };
+        }
+      } else {
+        parsedData = { replyText: resultText };
+      }
+    }
+
+    const replyText = (parsedData.replyText && typeof parsedData.replyText === 'string' && parsedData.replyText.trim())
+      ? parsedData.replyText.trim()
+      : (resultText.trim() || "I am right here with you!");
+
+    console.log(`[AI Companion] Gemini successful replyText: "${replyText.slice(0, 80)}"`);
 
     return res.json({
-      replyText: parsedData.replyText || fallbackResult.replyText,
-      detectedMood: parsedData.detectedMood || fallbackResult.detectedMood,
-      symptomDetected: parsedData.symptomDetected || fallbackResult.symptomDetected,
-      suggestedSelfCare: parsedData.suggestedSelfCare || fallbackResult.suggestedSelfCare,
-      detectedTone: parsedData.detectedTone || fallbackResult.detectedTone,
-      urgencyLevel: parsedData.urgencyLevel || fallbackResult.urgencyLevel,
-      flaggedConcern: parsedData.flaggedConcern || fallbackResult.flaggedConcern,
-      isEmergency: typeof parsedData.isEmergency === 'boolean' ? parsedData.isEmergency : fallbackResult.isEmergency,
+      replyText,
+      detectedMood: parsedData.detectedMood || "calm",
+      symptomDetected: parsedData.symptomDetected || null,
+      suggestedSelfCare: parsedData.suggestedSelfCare || null,
+      detectedTone: parsedData.detectedTone || "friendly",
+      urgencyLevel: parsedData.urgencyLevel || "none",
+      flaggedConcern: parsedData.flaggedConcern || null,
+      isEmergency: typeof parsedData.isEmergency === 'boolean' ? parsedData.isEmergency : false,
+      provider: "gemini",
     });
   } catch (error: any) {
-    console.error("Error in /api/companion/chat:", error);
-    const fallbackResult = analyzeSymptomFallback(req.body.prompt || "", req.body.seniorName || "Eleanor");
-    return res.json(fallbackResult);
+    console.error("[AI Companion] Error in /api/companion/chat (Gemini):", error.message || error);
+    return res.status(500).json({
+      replyText: "Sorry, I couldn't process that request. Please try again.",
+      detectedMood: "calm",
+      symptomDetected: null,
+      suggestedSelfCare: null,
+      detectedTone: "neutral",
+      urgencyLevel: "none",
+      flaggedConcern: null,
+      isEmergency: false,
+      error: error.message || "Failed to process AI request. Please try again.",
+      provider: "gemini",
+    });
   }
 });
 
@@ -796,7 +874,7 @@ Return strict JSON:
     });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.7-flash",
       contents: `Analyze these senior daily records:\n${inputData}`,
       config: {
         systemInstruction,

@@ -26,7 +26,7 @@ const DEFAULT_CHECKINS_FALLBACK: DailyCheckInLog[] = [
     period: 'evening',
     date: 'Yesterday',
     timestamp: '07:45 PM',
-    wellbeing: 'Mild knee stiffness after evening walk',
+    wellbeing: 'Feeling comfortable after evening walk',
     meals: 'Comforting soup and bread',
     sleep: 'Ready for relaxing night rest',
     mood: 'Peaceful',

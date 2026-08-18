@@ -103,7 +103,7 @@ export const ProactiveNotificationBanner: React.FC<ProactiveNotificationBannerPr
 
     if (type === 'medicine') {
       title = 'Prescription Medication Reminder';
-      prompt = `Hello ${seniorName}! This is a reminder to take your scheduled Lisinopril heart pill with a full glass of water.`;
+      prompt = `Hello ${seniorName}! This is a reminder for your scheduled medication.`;
     } else if (type === 'hydration') {
       title = 'Hydration & Water Reminder';
       prompt = `Dear ${seniorName}, time to drink a fresh glass of water! Staying hydrated keeps your energy steady and your mind clear.`;

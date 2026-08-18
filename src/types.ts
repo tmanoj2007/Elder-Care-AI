@@ -183,19 +183,21 @@ export interface LanguageOption {
 }
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
-  { code: 'en-US', name: 'English', nativeName: 'English (US)', flag: '🇺🇸' },
+  { code: 'auto', name: 'Auto Detect', nativeName: 'Auto Detect (Speech)', flag: '🌐' },
   { code: 'te-IN', name: 'Telugu', nativeName: 'తెలుగు', flag: '🇮🇳' },
   { code: 'hi-IN', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'es-ES', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+  { code: 'en-US', name: 'English', nativeName: 'English (US)', flag: '🇺🇸' },
   { code: 'ta-IN', name: 'Tamil', nativeName: 'தமிழ்', flag: '🇮🇳' },
-  { code: 'kn-IN', name: 'Kannada', nativeName: 'కన్నడ / ಕನ್ನಡ', flag: '🇮🇳' },
+  { code: 'kn-IN', name: 'Kannada', nativeName: 'ಕನ್ನಡ', flag: '🇮🇳' },
   { code: 'ml-IN', name: 'Malayalam', nativeName: 'മലയാളം', flag: '🇮🇳' },
   { code: 'bn-IN', name: 'Bengali', nativeName: 'বাংলা', flag: '🇮🇳' },
+  { code: 'mr-IN', name: 'Marathi', nativeName: 'मराठी', flag: '🇮🇳' },
+  { code: 'pa-IN', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', flag: '🇮🇳' },
+  { code: 'es-ES', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
   { code: 'fr-FR', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
   { code: 'de-DE', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
   { code: 'zh-CN', name: 'Mandarin Chinese', nativeName: '中文 (普通话)', flag: '🇨🇳' },
   { code: 'ja-JP', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵' },
-  { code: 'tl-PH', name: 'Tagalog / Filipino', nativeName: 'Tagalog', flag: '🇵🇭' },
   { code: 'ar-SA', name: 'Arabic', nativeName: 'العربية', flag: '🇸🇦' },
 ];
 
@@ -206,5 +208,29 @@ export interface SpeechMonitoringData {
   status: 'Stable' | 'Possible Change Detected';
   statusReason: string;
 }
+
+export type AIProvider = 'gemini' | 'ollama';
+
+export interface AIProviderOption {
+  id: AIProvider;
+  name: string;
+  badge: string;
+  description: string;
+}
+
+export const AI_PROVIDERS: AIProviderOption[] = [
+  {
+    id: 'gemini',
+    name: 'Gemini',
+    badge: 'Cloud AI',
+    description: 'Google Gemini 2.5 Flash cloud intelligence',
+  },
+  {
+    id: 'ollama',
+    name: 'Local Gemma 4',
+    badge: 'Local Gemma • Ollama',
+    description: 'Local gemma4:latest running via Ollama at localhost:11434',
+  },
+];
 
 

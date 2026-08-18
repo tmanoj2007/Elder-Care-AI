@@ -22,9 +22,11 @@ import {
   VolumeX,
   Play,
   RotateCcw,
-  Sparkle
+  Sparkle,
+  Cpu,
+  Server
 } from 'lucide-react';
-import { SeniorProfile, VoiceConversationMessage, TextScale, SUPPORTED_LANGUAGES } from '../types';
+import { SeniorProfile, VoiceConversationMessage, TextScale, SUPPORTED_LANGUAGES, AIProvider, AI_PROVIDERS } from '../types';
 import { speakText, stopSpeaking } from '../utils/speech';
 
 interface AICompanionModuleProps {
@@ -44,6 +46,8 @@ interface AICompanionModuleProps {
   micErrorNotice: string | null;
   setMicErrorNotice: (val: string | null) => void;
   textScale: TextScale;
+  aiProvider?: AIProvider;
+  onChangeAiProvider?: (provider: AIProvider) => void;
 }
 
 export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
@@ -63,6 +67,8 @@ export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
   micErrorNotice,
   setMicErrorNotice,
   textScale,
+  aiProvider = 'gemini',
+  onChangeAiProvider,
 }) => {
   const [manualText, setManualText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,14 +126,13 @@ export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
     );
   });
 
-  // Suggested Quick Replies tailored to Senior health & comfort
+  // Suggested Quick Replies tailored to Senior conversation & explicit requests
   const suggestedQuickReplies = [
-    { label: ' How is my health today?', prompt: 'How is my overall health and routine status today?' },
-    { label: '💊 Remind me of my next medicine', prompt: 'What is my next scheduled medicine and time?' },
-    { label: ' Headaches / Dizziness tips', prompt: 'I feel a slight headache and dizziness. What gentle self-care steps can I take?' },
-    { label: '🧘 Quick Breathing Exercise', prompt: 'Guide me through a simple 1-minute relaxing breathing exercise.' },
-    { label: ' Call my Caregiver / Family', prompt: 'I want to speak with my caregiver. Please log a contact note.' },
-    { label: ' Tell me a short story', prompt: 'Tell me an inspiring and heartwarming short story to brighten my morning.' },
+    { label: '💬 Hello Eleanor!', prompt: 'Hello! How are you today?' },
+    { label: '📖 Tell me a story', prompt: 'Tell me an inspiring and heartwarming short story.' },
+    { label: '🧘 Breathing Exercise', prompt: 'Guide me through a simple 1-minute relaxing breathing exercise.' },
+    { label: '🩺 I have a headache', prompt: 'I have a slight headache. What gentle self-care steps can I take?' },
+    { label: '💊 Check scheduled tasks', prompt: 'What are my scheduled tasks for today?' },
   ];
 
   const handleSendManualText = async () => {
@@ -218,8 +223,40 @@ export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
           </div>
         </div>
 
-        {/* Audio Controls & Language Selector */}
+        {/* Audio Controls, AI Provider Selector & Language Selector */}
         <div className="flex items-center gap-2.5 flex-wrap self-stretch md:self-auto justify-between md:justify-end">
+          
+          {/* AI Provider Switcher (Gemini / Local Gemma 4 via Ollama) */}
+          <div className="bg-slate-100 border-2 border-slate-300 rounded-xl p-1 flex items-center gap-1 shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => onChangeAiProvider && onChangeAiProvider('gemini')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 min-h-[38px] ${
+                aiProvider === 'gemini'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+              title="Use Google Gemini Cloud AI (Default)"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Gemini</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onChangeAiProvider && onChangeAiProvider('ollama')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 min-h-[38px] ${
+                aiProvider === 'ollama'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+              }`}
+              title="Use Local Gemma 4 via Ollama (localhost:11434)"
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Local Gemma 4</span>
+            </button>
+          </div>
+
           {/* Read Latest Answer Aloud */}
           {conversationHistory.length > 0 && (
             <button
@@ -235,7 +272,7 @@ export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
               aria-label="Read latest response aloud"
             >
               <Volume2 className="w-5 h-5 text-teal-200 stroke-[2.5]" />
-              <span>Read Answer Aloud</span>
+              <span>Read Answer</span>
             </button>
           )}
 
@@ -270,6 +307,34 @@ export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
               </select>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* ACTIVE AI PROVIDER STATUS BADGE BAR */}
+      <div className="flex items-center justify-between gap-3 bg-slate-100/90 border border-slate-200 px-4 py-2.5 rounded-2xl flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-600">Active AI Model:</span>
+          {aiProvider === 'ollama' ? (
+            <span className="inline-flex items-center gap-1.5 bg-purple-100 text-purple-900 border border-purple-300 px-3 py-1 rounded-full text-xs font-black shadow-sm">
+              <Cpu className="w-3.5 h-3.5 text-purple-700" />
+              <span>Local Gemma • Ollama</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 bg-sky-100 text-sky-900 border border-sky-300 px-3 py-1 rounded-full text-xs font-black shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-sky-700" />
+              <span>Gemini Cloud (Default)</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            </span>
+          )}
+        </div>
+
+        <div className="text-[11px] text-slate-500 font-medium">
+          {aiProvider === 'ollama' ? (
+            <span>Running locally via <code className="bg-slate-200 px-1 py-0.5 rounded text-purple-800 font-bold">http://localhost:11434</code> (gemma4:latest)</span>
+          ) : (
+            <span>Google Gemini Flash Multilingual Engine</span>
+          )}
         </div>
       </div>
 
@@ -402,7 +467,7 @@ export const AICompanionModule: React.FC<AICompanionModuleProps> = ({
                 : isListening
                 ? voiceInputText || 'Listening... Speak clearly now'
                 : isProcessingAi
-                ? '⚡ Processing speech and medical context...'
+                ? '⚡ Thinking...'
                 : '"Tap microphone button to start voice conversation"'}
             </p>
           </div>

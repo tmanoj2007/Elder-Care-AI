@@ -67,11 +67,21 @@ export function speakText(
 
       const langPrefix = targetLang.split('-')[0].toLowerCase();
 
-      // Find best voice matching the exact langCode or language prefix
-      const exactMatch = voices.find((v) => v.lang.toLowerCase() === targetLang.toLowerCase());
+      // Priority 1: Match voice whose lang or name contains the specific language (e.g. te / telugu)
+      const exactMatch = voices.find((v) => v.lang.toLowerCase().replace('_', '-') === targetLang.toLowerCase());
       const prefixMatch = voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix));
+      const nameMatch = voices.find((v) => {
+        const name = v.name.toLowerCase();
+        if (langPrefix === 'te' && (name.includes('telugu') || name.includes('mohan') || name.includes('shruti'))) return true;
+        if (langPrefix === 'hi' && (name.includes('hindi') || name.includes('swara') || name.includes('madhur') || name.includes('kalpana'))) return true;
+        if (langPrefix === 'ta' && (name.includes('tamil') || name.includes('valluvar'))) return true;
+        if (langPrefix === 'kn' && name.includes('kannada')) return true;
+        if (langPrefix === 'ml' && name.includes('malayalam')) return true;
+        if (langPrefix === 'bn' && name.includes('bengali')) return true;
+        return false;
+      });
 
-      const preferredVoice = exactMatch || prefixMatch || voices.find(
+      const preferredVoice = exactMatch || prefixMatch || nameMatch || (langPrefix === 'en' ? voices.find(
         (v) =>
           v.lang.startsWith('en') &&
           (v.name.includes('Samantha') ||
@@ -82,7 +92,7 @@ export function speakText(
             v.name.includes('Zira') ||
             v.name.includes('Female') ||
             v.name.includes('Serena'))
-      ) || voices[0];
+      ) : null) || voices[0];
 
       if (preferredVoice) {
         utterance.voice = preferredVoice;

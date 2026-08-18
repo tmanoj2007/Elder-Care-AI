@@ -21,12 +21,12 @@ const COMMON_DISEASES = [
 const DEFAULT_TIMETABLE_PRESETS: CheckInItem[] = [
   {
     id: 'chk-reg-1',
-    title: 'Morning Heart Pill (Lisinopril 10mg)',
+    title: 'Morning Medicine (Prescribed)',
     category: 'medication',
-    dosageOrDetails: '1 pill with warm water',
+    dosageOrDetails: '1 dose with water',
     scheduledTime: '08:00 AM',
     completed: false,
-    audioPrompt: 'Remember to take your Lisinopril heart pill with a full glass of water.',
+    audioPrompt: 'Remember to take your scheduled morning medication.',
   },
   {
     id: 'chk-reg-2',
@@ -35,7 +35,7 @@ const DEFAULT_TIMETABLE_PRESETS: CheckInItem[] = [
     dosageOrDetails: '1 large glass of fresh water (8 oz)',
     scheduledTime: '09:30 AM',
     completed: false,
-    audioPrompt: 'Time for a fresh glass of water to keep your hydration up and joints feeling smooth!',
+    audioPrompt: 'Time for a fresh glass of water to keep yourself well-hydrated!',
   },
   {
     id: 'chk-reg-3',
@@ -57,21 +57,21 @@ const DEFAULT_TIMETABLE_PRESETS: CheckInItem[] = [
   },
   {
     id: 'chk-reg-5',
-    title: 'Evening Blood Pressure Pill (Amlodipine 5mg)',
+    title: 'Evening Medicine (Prescribed)',
     category: 'medication',
-    dosageOrDetails: '1 pill with dinner',
+    dosageOrDetails: '1 dose with dinner',
     scheduledTime: '06:30 PM',
     completed: false,
-    audioPrompt: 'Evening time! Please take your blood pressure tablet with your evening meal.',
+    audioPrompt: 'Evening time! Please take your scheduled evening medication.',
   },
   {
     id: 'chk-reg-6',
-    title: 'Night Vital Signs & Sleep Check-In',
+    title: 'Night Check-In & Rest',
     category: 'health_check',
-    dosageOrDetails: 'Quick blood pressure & temperature log',
+    dosageOrDetails: 'Daily wellness check',
     scheduledTime: '08:30 PM',
     completed: false,
-    audioPrompt: 'Let us complete your evening vital signs check-in before you rest tonight.',
+    audioPrompt: 'Let us complete your evening check-in before you rest tonight.',
   },
 ];
 

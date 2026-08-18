@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ViewMode, TextScale, SeniorProfile, CheckInItem, VoiceConversationMessage,
   CaregiverInsight, PrivacySettings, EmergencyAlert, CaregiverNotification,
-  NotificationEventType, UserAccount, SUPPORTED_LANGUAGES
+  NotificationEventType, UserAccount, SUPPORTED_LANGUAGES, AIProvider
 } from './types';
 import {
   initialSeniorProfile, initialCheckInItems, initialConversation,
@@ -18,7 +18,6 @@ import { EmergencyModal } from './components/EmergencyModal';
 import { LandingRoleSelection } from './components/LandingRoleSelection';
 import { SplashScreen } from './components/SplashScreen';
 import { WelcomePage } from './components/WelcomePage';
-import { LoginPage } from './components/LoginPage';
 import { LinearOnboardingFlow } from './components/LinearOnboardingFlow';
 import { speakText, stopSpeaking } from './utils/speech';
 import { validateTaskTime } from './utils/timeValidation';
@@ -80,6 +79,15 @@ export default function App() {
   const [isProcessingAi, setIsProcessingAi] = useState(false);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
 
+  // AI Provider state (Gemini vs Local Gemma 4 via Ollama) with session persistence
+  const [aiProvider, setAiProvider] = useState<AIProvider>(() => {
+    const saved = localStorage.getItem('eldercare_ai_provider');
+    if (saved === 'ollama' || saved === 'gemini') {
+      return saved;
+    }
+    return 'gemini';
+  });
+
   // Active language option
   const currentLangOption = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage) || SUPPORTED_LANGUAGES[0];
 
@@ -87,6 +95,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('eldercare_senior_profile', JSON.stringify(profile));
   }, [profile]);
+
+  useEffect(() => {
+    localStorage.setItem('eldercare_ai_provider', aiProvider);
+  }, [aiProvider]);
 
   useEffect(() => {
     localStorage.setItem('eldercare_checkin_items', JSON.stringify(checkInItems));
@@ -366,18 +378,26 @@ export default function App() {
             seniorName,
             selectedLanguage: currentLangOption?.name || 'English',
             languageCode: currentLangOption?.code || 'en-US',
+            provider: aiProvider,
           }),
         });
 
         const data = await res.json();
-        const replyText = data.replyText || `I am here with you, ${seniorName}!`;
+        let replyText = data.replyText;
+        if (!replyText || typeof replyText !== 'string' || !replyText.trim()) {
+          if (aiProvider === 'ollama') {
+            replyText = 'Local Gemma is not available. Please start Ollama on this computer and try again.';
+          } else {
+            replyText = "Sorry, I couldn't process that request. Please try again.";
+          }
+        }
         const detectedMood = data.detectedMood || 'calm';
         const isEmergency = Boolean(data.isEmergency);
 
         const companionMsg: VoiceConversationMessage = {
           id: `msg-${Date.now() + 1}`,
           sender: 'companion',
-          text: replyText,
+          text: replyText.trim(),
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           detectedMood,
           symptomDetected: data.symptomDetected || undefined,
@@ -393,7 +413,7 @@ export default function App() {
         // Speak response
         try {
           speakText(
-            replyText,
+            replyText.trim(),
             () => setIsSpeaking(true),
             () => setIsSpeaking(false),
             0.92,
@@ -424,8 +444,8 @@ export default function App() {
           ]);
         }
 
-        // Trigger Mood Alert Notification (Event Type 4) if mood is lonely or anxious
-        if (['lonely', 'anxious', 'confused'].includes(detectedMood)) {
+        // Trigger Mood Alert Notification (Event Type 4) only on genuine flagged concern with elevated urgency
+        if (['lonely', 'anxious', 'confused'].includes(detectedMood) && data.flaggedConcern && (data.urgencyLevel === 'moderate' || data.urgencyLevel === 'high' || data.urgencyLevel === 'critical')) {
           setNotifications((prevNotifs) => [
             {
               id: `notif-mood-${Date.now()}`,
@@ -445,24 +465,22 @@ export default function App() {
         }
 
       } catch (err) {
-        console.warn('Companion AI API offline, using local intelligent conversational fallback:', err);
-        const fallbackReplies = [
-          `I heard you, ${seniorName}! It is always wonderful chatting with you. Let me know if you need anything or want to check your daily routine.`,
-          `Thank you for sharing that with me, ${seniorName}. I am right here keeping you company. How is your comfort level right now?`,
-          `I am right here with you, ${seniorName}. Remember to take regular sips of water and stay comfortable today.`
-        ];
-        const randomReply = fallbackReplies[Math.floor(Math.random() * fallbackReplies.length)];
+        console.warn('Companion AI API offline or error:', err);
+        const replyText = aiProvider === 'ollama'
+          ? 'Local Gemma is not available. Please start Ollama on this computer and try again.'
+          : "Sorry, I couldn't process that request. Please try again.";
+
         const companionMsg: VoiceConversationMessage = {
           id: `msg-${Date.now() + 1}`,
           sender: 'companion',
-          text: randomReply,
+          text: replyText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           detectedMood: 'calm',
           urgencyLevel: 'none',
         };
         setConversationHistory((prev) => [...(prev || []), companionMsg]);
         try {
-          speakText(randomReply, () => setIsSpeaking(true), () => setIsSpeaking(false), 0.92, 1.0, selectedLanguage);
+          speakText(replyText, () => setIsSpeaking(true), () => setIsSpeaking(false), 0.92, 1.0, selectedLanguage);
         } catch (speakErr) {
           console.warn('Speech synthesis error:', speakErr);
         }
@@ -624,24 +642,6 @@ export default function App() {
     speakText(promptText, () => setIsSpeaking(true), () => setIsSpeaking(false), 0.9, 1.0, selectedLanguage);
   };
 
-  // Handle Login
-  const handleLogin = (email: string, password: string) => {
-    if (!email || !password) return;
-
-    // Determine role from email pattern (caregiver = contains 'care', elderly otherwise)
-    const role = email.toLowerCase().includes('care') ? 'caregiver' : 'elderly';
-
-    const account: UserAccount = {
-      id: `user-${Date.now()}`,
-      email,
-      role,
-      name: email.split('@')[0],
-    };
-
-    setUserAccount(account);
-    setCurrentView(role);
-  };
-
   // Handle Role Selection from Landing Page
   const handleSelectRole = (
     role: 'elderly' | 'caregiver',
@@ -705,30 +705,13 @@ export default function App() {
             className="w-full min-h-screen"
           >
             <WelcomePage
-              onProceedToRoleSelection={() => setCurrentView('login')}
-              onQuickLogin={() => setCurrentView('login')}
+              onProceedToRoleSelection={() => setCurrentView('role_selection')}
+              onQuickLogin={() => setCurrentView('role_selection')}
             />
           </motion.div>
         )}
 
-        {/* PAGE ARCHITECTURE ROUTE 3: LOGIN */}
-        {currentView === 'login' && (
-          <motion.div
-            key="login"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="w-full min-h-screen"
-          >
-            <LoginPage
-              onLogin={handleLogin}
-              onBack={() => setCurrentView('welcome')}
-            />
-          </motion.div>
-        )}
-
-        {/* PAGE ARCHITECTURE ROUTE 4 & 5: ROLE SELECTION & REGISTRATION */}
+        {/* PAGE ARCHITECTURE ROUTE 3 & 4: ROLE SELECTION & LOGIN / REGISTRATION */}
         {(currentView === 'role_selection' || currentView === 'auth') && (
           <motion.div
             key="role_selection"
@@ -749,7 +732,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* TOP HEADER NAVIGATION (For Active Dashboards) */}
-      {!['splash', 'welcome', 'login', 'role_selection', 'auth'].includes(currentView) && (
+      {!['splash', 'welcome', 'role_selection', 'auth'].includes(currentView) && (
         <Header
           currentView={currentView}
           onSelectView={setCurrentView}
@@ -768,7 +751,7 @@ export default function App() {
       )}
 
       {/* MAIN DASHBOARDS */}
-      {!['splash', 'welcome', 'login', 'role_selection', 'auth'].includes(currentView) && (
+      {!['splash', 'welcome', 'role_selection', 'auth'].includes(currentView) && (
         <div className="flex-1">
           <AnimatePresence mode="wait">
             {currentView === 'elderly' && (
@@ -787,6 +770,7 @@ export default function App() {
                   conversationHistory={conversationHistory}
                   onSendMessage={handleSendMessage}
                   textScale={textScale}
+                  onChangeTextScale={setTextScale}
                   selectedLanguage={selectedLanguage}
                   onChangeLanguage={setSelectedLanguage}
                   onTriggerSOS={handleTriggerSOS}
@@ -800,6 +784,8 @@ export default function App() {
                   onDismissTaskWarning={() => setTaskWarningNotice(null)}
                   onNavigateToCaregiver={() => setCurrentView('caregiver')}
                   notifications={notifications}
+                  aiProvider={aiProvider}
+                  onChangeAiProvider={setAiProvider}
                 />
               </motion.div>
             )}
